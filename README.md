@@ -28,100 +28,117 @@ If the letters are not on the same row or column, replace them with the letters 
 #include <string.h>
 #include <ctype.h>
 
-int keymat[3][3] = { { 1, 2, 1 }, { 2, 3, 2 }, { 2, 2, 1 } };
-int invkeymat[3][3] = { { -1, 0, 1 }, { 2, -1, 0 }, { -2, 2, -1 } };
-char key[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+#define SIZE 5
 
-// Function to encode a triplet of characters
-void encode(char a, char b, char c, char ret[]) {
-    int x, y, z;
-    int posa = (int)a - 65;
-    int posb = (int)b - 65;
-    int posc = (int)c - 65;
+void prepareKeyTable(char key[], char keyTable[SIZE][SIZE]) {
+    int i, j, k, flag = 0, *dicty;
+    dicty = (int*)calloc(26, sizeof(int));
 
-    x = posa * keymat[0][0] + posb * keymat[1][0] + posc * keymat[2][0];
-    y = posa * keymat[0][1] + posb * keymat[1][1] + posc * keymat[2][1];
-    z = posa * keymat[0][2] + posb * keymat[1][2] + posc * keymat[2][2];
-
-    ret[0] = key[x % 26];
-    ret[1] = key[y % 26];
-    ret[2] = key[z % 26];
-    ret[3] = '\0';
-}
-
-// Function to decode a triplet of characters
-void decode(char a, char b, char c, char ret[]) {
-    int x, y, z;
-    int posa = (int)a - 65;
-    int posb = (int)b - 65;
-    int posc = (int)c - 65;
-
-    x = posa * invkeymat[0][0] + posb * invkeymat[1][0] + posc * invkeymat[2][0];
-    y = posa * invkeymat[0][1] + posb * invkeymat[1][1] + posc * invkeymat[2][1];
-    z = posa * invkeymat[0][2] + posb * invkeymat[1][2] + posc * invkeymat[2][2];
-
-    ret[0] = key[(x % 26 < 0) ? (26 + x % 26) : (x % 26)];
-    ret[1] = key[(y % 26 < 0) ? (26 + y % 26) : (y % 26)];
-    ret[2] = key[(z % 26 < 0) ? (26 + z % 26) : (z % 26)];
-    ret[3] = '\0';
-}
-
-int main() {
-    char msg[1000];
-    char enc[1000] = "";
-    char dec[1000] = "";
-    int n;
-
-    strcpy(msg, "PREETHI");
-    printf("Input message : %s\n", msg);
-
-    // Convert the input message to uppercase
-    for (int i = 0; i < strlen(msg); i++) {
-        msg[i] = toupper(msg[i]);
-    }
-
-    // Remove spaces
-    n = strlen(msg) % 3;
-
-    // Append padding text 'X' if necessary
-    if (n != 0) {
-        for (int i = 1; i <= (3 - n); i++) {
-            strcat(msg, "X");
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            keyTable[i][j] = '\0';
         }
     }
 
-    printf("Padded message : %s\n", msg);
-
-    // Encode the message
-    for (int i = 0; i < strlen(msg); i += 3) {
-        char a = msg[i];
-        char b = msg[i + 1];
-        char c = msg[i + 2];
-        char encoded[4];
-        encode(a, b, c, encoded);
-        strcat(enc, encoded);
+    for (i = 0; i < strlen(key); i++) {
+        if (key[i] != 'j') {
+            if (isalpha(key[i])) {
+                if (dicty[tolower(key[i]) - 'a'] == 0) {
+                    keyTable[flag / SIZE][flag % SIZE] = tolower(key[i]);
+                    dicty[tolower(key[i]) - 'a'] = 1;
+                    flag++;
+                }
+            }
+        }
     }
 
-    printf("Encoded message : %s\n", enc);
-
-    // Decode the message
-    for (int i = 0; i < strlen(enc); i += 3) {
-        char a = enc[i];
-        char b = enc[i + 1];
-        char c = enc[i + 2];
-        char decoded[4];
-        decode(a, b, c, decoded);
-        strcat(dec, decoded);
+    for (i = 0; i < 26; i++) {
+        if (dicty[i] == 0 && i != ('j' - 'a')) {
+            keyTable[flag / SIZE][flag % SIZE] = i + 'a';
+            flag++;
+        }
     }
+}
 
-    printf("Decoded message : %s\n", dec);
+void search(char keyTable[SIZE][SIZE], char a, char b, int pos[]) {
+    int i, j;
+
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            if (keyTable[i][j] == a) {
+                pos[0] = i;
+                pos[1] = j;
+            } else if (keyTable[i][j] == b) {
+                pos[2] = i;
+                pos[3] = j;
+            }
+        }
+    }
+}
+
+void encrypt(char str[], char keyTable[SIZE][SIZE]) {
+    int i, pos[4];
+
+    for (i = 0; i < strlen(str); i += 2) {
+        search(keyTable, str[i], str[i + 1], pos);
+
+        if (pos[0] == pos[2]) {
+            str[i] = keyTable[pos[0]][(pos[1] + 1) % SIZE];
+            str[i + 1] = keyTable[pos[2]][(pos[3] + 1) % SIZE];
+        } else if (pos[1] == pos[3]) {
+            str[i] = keyTable[(pos[0] + 1) % SIZE][pos[1]];
+            str[i + 1] = keyTable[(pos[2] + 1) % SIZE][pos[3]];
+        } else {
+            str[i] = keyTable[pos[0]][pos[3]];
+            str[i + 1] = keyTable[pos[2]][pos[1]];
+        }
+    }
+}
+
+void prepare(char str[], char ptrs[]) {
+    int i, j;
+
+    j = 0;
+    for (i = 0; i < strlen(str); i++) {
+        if (str[i] == 'j') {
+            str[i] = 'i';
+        }
+        if (str[i] != ' ') {
+            ptrs[j++] = tolower(str[i]);
+        }
+    }
+    ptrs[j] = '\0';
+
+    if (strlen(ptrs) % 2 != 0) {
+        ptrs[j++] = 'x';
+        ptrs[j] = '\0';
+    }
+}
+
+int main() {
+    char key[SIZE * SIZE], str[100], keyTable[SIZE][SIZE], strPrepared[100];
+
+    printf("Enter key: ");
+    scanf("%s", key);
+
+    prepareKeyTable(key, keyTable);
+
+    printf("Enter message: ");
+    scanf(" %[^\n]", str);
+
+    prepare(str, strPrepared);
+
+    encrypt(strPrepared, keyTable);
+
+    printf("Encrypted message: %s\n", strPrepared);
+
     return 0;
 }
 ```
 
 ## OUTPUT:
 
-![Screenshot 2024-09-04 140259](https://github.com/user-attachments/assets/76460724-f0d9-4415-ac32-349e086efc80)
+![Screenshot 2024-09-04 142204](https://github.com/user-attachments/assets/49388164-e25b-4c6a-bb2e-c4cb52d14fc6)
 
 ## RESULT:
 The program is executed successfully
